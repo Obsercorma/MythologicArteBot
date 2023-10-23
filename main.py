@@ -1,0 +1,49 @@
+import discord
+from discord.ext import commands
+from discord import app_commands as apc, Game
+from dotenv import dotenv_values
+import json
+from rich import print as richPrint
+
+config = dotenv_values(".env")
+with open("./exts.json", "r", encoding="utf-8") as file:
+    exts = json.load(file)
+
+class MyBot(commands.Bot):
+    syncedCommands = []
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(command_prefix="?", intents=intents)
+    
+    async def setup_hook(self):
+        for ext in exts.values():
+            richPrint(f"EXT STATUS: {ext['name']} : {ext['isActive']}!")
+            if ext["isActive"]:
+                await self.load_extension(f"cogs.{ext['name']}")
+        self.syncedCommands = await self.tree.sync()
+    
+    async def on_ready(self):
+        await self.change_presence(activity=Game(name="Administre le serveur Discord MythlogicArte.fr"))
+        richPrint(f"Synced commands: {len(self.syncedCommands)}.")
+
+
+bot = MyBot()
+
+@bot.tree.command(name="reloadext", description="Recharger une extension du bot")
+@apc.describe(extname="Nom de l'extension (cog)")
+async def reloadext(interact:discord.Interaction, extname:str):
+    try:
+        await bot.reload_extension(f"cogs.{extname}")
+    except:
+        await interact.response.send_message("Rechargement de l'extension impossible !")
+        return
+    await interact.response.send_message("Rechargement effectué !")
+
+@bot.tree.command(name="ping", description="Get pong latency")
+async def ping(interact:discord.Interaction):
+    bot_latency = round(bot.latency * 1000)
+    await interact.response.send_message(f"Pong {bot_latency}ms !")
+
+if __name__ == "__main__":
+    bot.run(config["TOKEN"])

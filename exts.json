@@ -1,0 +1,10 @@
+{
+    "RSSManager":{
+        "name":"rssman",
+        "isActive":true
+    },
+    "ClearManager":{
+        "name":"clearman",
+        "isActive":true
+    }
+}
