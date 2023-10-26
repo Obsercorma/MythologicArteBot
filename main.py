@@ -4,6 +4,7 @@ from discord import app_commands as apc, Game
 from dotenv import dotenv_values
 import json
 from rich import print as richPrint
+from utils_bot import sysWebCheckUser
 
 config = dotenv_values(".env")
 with open("./exts.json", "r", encoding="utf-8") as file:
@@ -31,6 +32,7 @@ class MyBot(commands.Bot):
 bot = MyBot()
 
 @bot.tree.command(name="reloadext", description="Recharger une extension du bot")
+@sysWebCheckUser()
 @apc.describe(extname="Nom de l'extension (cog)")
 async def reloadext(interact:discord.Interaction, extname:str):
     try:
@@ -41,9 +43,15 @@ async def reloadext(interact:discord.Interaction, extname:str):
     await interact.response.send_message("Rechargement effectué !")
 
 @bot.tree.command(name="ping", description="Get pong latency")
+@sysWebCheckUser()
 async def ping(interact:discord.Interaction):
     bot_latency = round(bot.latency * 1000)
     await interact.response.send_message(f"Pong {bot_latency}ms !")
+
+@reloadext.error
+async def on_error_reloadext(interact:discord.Interaction, error):
+    richPrint(error)
+    await interact.response.send_message("Une erreur est survenu lors du rechargement de l'extension !")
 
 if __name__ == "__main__":
     bot.run(config["TOKEN"])
