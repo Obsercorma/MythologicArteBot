@@ -18,10 +18,10 @@ class ClearManager(commands.Cog):
             
             async for mesg in interact.channel.history(limit=nbrmesg):
                 await mesg.delete()
-            return await interact.response.send_message(f"Suppression de {nbrmesg} messages réussi !", delete_after=5.0)
+            return await interact.response.send_message(f"Suppression de {nbrmesg} messages réussi !", delete_after=2.0)
         except Exception as e:
             richPrint(e)
-            return await interact.response.send_message("Échec lors de la suppression des derniers messages !", delete_after=5.0)
+            return await interact.response.send_message("Échec lors de la suppression des derniers messages !", delete_after=2.0)
 
     @clear.error
     async def on_error_clear(self, interact:Interaction,error):
