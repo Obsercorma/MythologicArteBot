@@ -10,11 +10,19 @@ from random import random
 from utils_bot import sysWebCheckUser, successMessage, errorMessage, infoMessage
 from datetime import datetime
 from email.utils import parsedate_tz
+from random import randint
 
 async def setup(bot):
     global appChoices
     rssman = RSSManager(bot)
     await bot.add_cog(rssman)
+
+def genUID(strlen=16)->str:
+    s=""
+    alpha="abcdef1234567890"
+    for a in range(strlen):
+        s+= alpha[randint(0,len(alpha)-1)]
+    return s
 
 
 class RSSManager(commands.Cog):
@@ -201,14 +209,14 @@ class RSSManager(commands.Cog):
         try:
             req = self.dbRSS.cursor()
             req.execute("""
-            SELECT D.titlePost,D.linkPost,D.datePost,C.descCateg FROM data_feeds D 
+            SELECT D.titlePost,D.linkPost,D.datePost,D.verify_key,C.descCateg FROM data_feeds D 
             INNER JOIN categsFeed C ON D.idCateg = C.idCateg
             WHERE C.isHidden = FALSE ORDER BY D.datePost LIMIT ?""", [nbrCheck])
             res = req.fetchall()
-            embed = Embed(title=f"Liste des {nbrCheck} derniers articles", color=0x3F8FFC)
+            embed = Embed(title=f"<:news:1167385507764916234> Liste des {nbrCheck} derniers articles", color=0x3F8FFC)
             for art in res:
                 tmpDate = parsedate_tz(art[2])
-                embed.add_field(name=art[0], value=f"**[Lien article]({art[1]})**\nAjouté le {tmpDate[2]:02d}/{tmpDate[1]:02d}/{tmpDate[0]} {tmpDate[3]:02d}:{tmpDate[4]:02d} | Catégorie: {art[3]}", inline=False)
+                embed.add_field(name=art[0], value=f"**[Lien article]({art[1]})**\nAjouté le {tmpDate[2]:02d}/{tmpDate[1]:02d}/{tmpDate[0]} {tmpDate[3]:02d}:{tmpDate[4]:02d}\nCatégorie: {art[4]}\nID: **{art[3]}**", inline=False)
             return await interact.response.send_message(embed=embed)
         except sqlite3.Error as e:
             richPrint(e)
@@ -240,11 +248,9 @@ class RSSManager(commands.Cog):
             self.newsHasStarted = True
             self.postRSSNews.start()
 
-    @tasks.loop(seconds=20)
+    @tasks.loop(minutes=1)
     async def postRSSNews(self):
-        # richPrint("[blue]\[INFO_TASK][/blue]: fetch RSS News")
         rssFeeds = self.getRSSFeeds()
-        #richPrint(len(rssFeeds))
         try:
             for rss in rssFeeds:
                 if not rss["ishidden"]:
@@ -254,29 +260,34 @@ class RSSManager(commands.Cog):
                     res = xmlParse(req.content.decode("utf-8"), encoding="utf-8")
                     session.close()
                     #richPrint(rss)
-                    for itemRSS in res["rss"]["channel"]["item"]:
-                        curSelect = self.dbRSS.cursor()
-                        curSelect.execute("SELECT COUNT(*) FROM data_feeds WHERE guidPost=?;", [itemRSS["guid"]])
-                        selectRowCount = curSelect.fetchone()
-                        curSelect.close()
-                        # richPrint(selectRowCount[0], type(selectRowCount[0]))
-                        if selectRowCount[0] < 1:
-                            curInsert = sqlPostFeed.cursor()
-                            curInsert.execute("""
-                            INSERT INTO data_feeds(guidPost,titlePost,linkPost,descPost,datePost,idFeed,idCateg)
-                            VALUES(?,?,?,?,?,?,?);
-                            """,[
-                                itemRSS["guid"],
-                                itemRSS["title"],
-                                itemRSS["link"],
-                                (itemRSS["description"] if not itemRSS["description"] is None else "Aucune Description"),
-                                itemRSS["pubDate"],
-                                rss["idname"],
-                                rss["categ"]
-                            ])
-                            sqlPostFeed.commit()
-                            curInsert.close()
-                            richPrint(f"[green]\[SUCCESS][/green]: Post {itemRSS['guid']} inserted!")
+                    for _itemRSS in res["rss"]["channel"].items():
+                        if _itemRSS[0] == "item":
+                            for itemRSS in _itemRSS[1]:
+                                #richPrint(itemRSS)
+                                verify_key = genUID()
+                                curSelect = self.dbRSS.cursor()
+                                curSelect.execute("SELECT COUNT(*) FROM data_feeds WHERE guidPost=?;", [itemRSS["guid"]])
+                                selectRowCount = curSelect.fetchone()
+                                curSelect.close()
+                                # richPrint(selectRowCount[0])
+                                if selectRowCount[0] < 1:
+                                    curInsert = self.dbRSS.cursor()
+                                    curInsert.execute("""
+                                    INSERT INTO data_feeds(verify_key,guidPost,titlePost,linkPost,descPost,datePost,idFeed,idCateg)
+                                    VALUES(?,?,?,?,?,?,?,?);
+                                    """,[
+                                        verify_key,
+                                        itemRSS["guid"],
+                                        itemRSS["title"],
+                                        itemRSS["link"],
+                                        (itemRSS["description"] if not itemRSS["description"] is None else "Aucune Description"),
+                                        itemRSS["pubDate"],
+                                        rss["idname"],
+                                        rss["categ"]
+                                    ])
+                                    self.dbRSS.commit()
+                                    curInsert.close()
+                                    richPrint(f"[green]\[SUCCESS][/green]: Post {verify_key} inserted!")
         except sqlite3.Error as e:
             richPrint(e.args)
 

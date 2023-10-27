@@ -1,0 +1,13 @@
+-- SQLite
+create table data_feeds(
+    verify_key not null,
+    guidPost TEXT not null,
+    titlePost varchar(255) not null,
+    linkPost text not null,
+    descPost text not null,
+    datePost date not null,
+    idFeed integer not null,
+    idCateg integer not null,
+    PRIMARY KEY(verify_key),
+    UNIQUE(guidPost,titlePost,linkPost)
+);
