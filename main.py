@@ -36,11 +36,14 @@ bot = MyBot()
 @apc.describe(extname="Nom de l'extension (cog)")
 async def reloadext(interact:discord.Interaction, extname:str):
     try:
+        richPrint(f"[blue][INFO] [/blue]: Reloading {extname} extension...")
         await bot.reload_extension(f"cogs.{extname}")
+        richPrint(f"[green][SUCCESS] [/green]: {extname} extension has been reloaded!")
+        return await interact.response.send_message("Rechargement effectué !")
     except:
-        await interact.response.send_message("Rechargement de l'extension impossible !")
-        return
-    await interact.response.send_message("Rechargement effectué !")
+        richPrint(f"[yellow][WARNING] [/yellow]: Cannot reload {extname} extension!")
+        return await interact.response.send_message("Rechargement de l'extension impossible !")
+   
 
 @bot.tree.command(name="ping", description="Get pong latency")
 @sysWebCheckUser()

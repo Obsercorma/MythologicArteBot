@@ -13,7 +13,6 @@ from email.utils import parsedate_tz
 from random import randint
 
 async def setup(bot):
-    global appChoices
     rssman = RSSManager(bot)
     await bot.add_cog(rssman)
 
@@ -24,10 +23,49 @@ def genUID(strlen=16)->str:
         s+= alpha[randint(0,len(alpha)-1)]
     return s
 
+def checkURL(url:str)->bool:
+    regexList = [
+        "^https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)$",
+        "^[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)$"
+    ]
+    for regex in regexList:
+        if re.match(regex, url):
+            return True
+    return False       
+
+def getCategs():
+    dbCategs = []
+    env_values = dotenv_values(".env")
+    try:
+        cur = sqlite3.connect(env_values["DB_FULLPATH"], isolation_level=None).cursor()
+        res = cur.execute("SELECT * FROM categsFeed", [])
+        tmpData = cur.fetchall()
+        for categ in tmpData:
+            dbCategs.append({
+                "ishidden":categ[2],
+                "name":categ[1],
+                "value":categ[0],
+            })
+        cur.close()
+    except sqlite3.Error as e:
+        richPrint(e)
+    with open("./db/categs.json", "w", encoding="utf-8") as file:
+        json.dump(dbCategs, file)
+    return dbCategs
+
+def getRSSFeeds():
+    rssFeeds = []
+    with open("./rssFeeds.json", "r", encoding="utf-8") as file:
+        rssfeeds = json.load(file)
+    return rssfeeds
+
+appChoices = [apc.Choice(name=categ["name"],value=categ["value"]) for categ in getCategs()]
+appChoicesFeeds = [apc.Choice(name=feeds["name"], value=feeds["idname"]) for feeds in getRSSFeeds()]
+#richPrint(appChoices, appChoicesFeeds)
 
 class RSSManager(commands.Cog):
-    appChoices = []
     lstCategs:list
+    global appChoices, appChoicesFeeds
 
     def __init__(self, bot : commands.Bot):
         self.bot = bot
@@ -35,7 +73,7 @@ class RSSManager(commands.Cog):
         self.postRSSFeeds.start()
         self.newsHasStarted = False
         self.dbRSS = sqlite3.connect(self.envsValues["DB_FULLPATH"], isolation_level=None)
-        appChoices = [apc.Choice(name=categ["name"],value=categ["value"]) for categ in self.getCategs()]
+        
 
     def __del__(self):
         richPrint("[blue]\[INFO][/blue] : Interrupting RSSManager...")
@@ -78,9 +116,30 @@ class RSSManager(commands.Cog):
             return False
     def getRSSFeeds(self):
         rssFeeds = []
-        with open("./rssFeeds.json", "r", encoding="utf-8") as file:
-            rssfeeds = json.load(file)
-        return rssfeeds
+        try:
+            req = self.dbRSS.cursor()
+            req.execute("SELECT F.*,C.descCateg FROM feeds F INNER JOIN categsFeed C ON F.categFeed = C.idCateg;")
+            tmpFetch = req.fetchall()
+            for dtf in tmpFetch:
+                rssFeeds.append({
+                    "idname":dtf[0],
+                    "name":dtf[1],
+                    "link":dtf[2],
+                    "ishidden":dtf[4],
+                    "categ":dtf[3],
+                    "nameCateg":dtf[5],
+                    "issent":False,
+                    "isupdated":False
+                })
+                req.close()
+        except sqlite3.Error as e:
+            richPrint(e)
+        with open("rssFeeds.json", 'r', encoding="utf-8") as file:
+            tmpData = json.load(file)
+            for dtj in range(0,len(rssFeeds)-1):
+                rssFeeds[dtj]["issent"] = tmpData[dtj]["issent"]
+                rssFeeds[dtj]["isupdated"] = tmpData[dtj]["isupdated"]
+        return rssFeeds
 
     def setRSSFeeds(self, obj:list)->list:
         try:
@@ -145,7 +204,8 @@ class RSSManager(commands.Cog):
         embed = Embed(title="Liste des flux RSS", color=0x3F8FFC)
         rssfeeds = self.getRSSFeeds()
         for i in range(len(rssfeeds)):
-            embed.add_field(name=f"#{i}", value=f"__{rssfeeds[i]['link']}__, catégorie: **{rssfeeds[i]['nameCateg']}**", inline=False)
+            tmpIsHidden = "Oui" if not rssfeeds[i]["ishidden"] else "Non"
+            embed.add_field(name=f"#{i}", value=f"__{rssfeeds[i]['link']}__, catégorie: **{rssfeeds[i]['nameCateg']}**.\n Est publique: **{tmpIsHidden}**.", inline=False)
         return await interact.response.send_message(embed=embed)
 
     @apc.command(name="removerssfeed", description="Retirer un flux RSS")
@@ -222,6 +282,170 @@ class RSSManager(commands.Cog):
             richPrint(e)
         return await interact.response.send_message(embed=errorMessage(description=f"Une erreur s'est produite lors de la récupération des {nbrCheck} derniers articles !"))
 
+    @apc.command(name="updaterss", description="Met à jour les informations du flux RSS")
+    @apc.choices(idfeed=appChoicesFeeds)
+    @apc.describe(link="Nouveau lien RSS", idfeed="Identifiant flux RSS", namefeed="Nom du flux RSS")
+    @sysWebCheckUser()
+    async def updaterss(self, interact:Interaction, idfeed:apc.Choice[int], link:str, namefeed:str=None):
+        try:
+            if not checkURL(link):
+                return await interact.response.send_message(embed=errorMessage(description="Le lien RSS renseigné est incorrect !"))
+            if namefeed:
+                if not re.match("[a-zA-Z0-9\-\_ ]+", namefeed):
+                    return await interact.response.send_message(embed=errorMessage(description="Le nom renseigné contient des carractères invalides !"))
+            reqVerify = self.dbRSS.cursor()
+            reqVerify.execute("SELECT idFeed FROM feeds WHERE idFeed = ?;", [idfeed.value])
+            reqVerify.fetchone()
+            rc = reqVerify.rowcount
+            reqVerify.close()
+            if rc > 0:
+                return await interact.response.send_message(embed=errorMessage(description="L'identifiant renseigné est inexistant !"))
+            req = self.dbRSS.cursor()
+            richPrint(f"nameFeed: {namefeed}")
+            if not namefeed is None:
+                req.execute("UPDATE feeds SET linkFeed = ?, nameFeed = ? WHERE idFeed = ?;", [link, namefeed, idfeed.value])
+            else:
+                req.execute("UPDATE feeds SET linkFeed = ? WHERE idFeed = ?;", [link,idfeed.value])
+                
+            self.dbRSS.commit()
+            req.close()
+            return await interact.response.send_message(embed=successMessage(description="Le flux RSS a bien été mis à jour !"))
+        except sqlite3.Error as e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur est survenue lors de la mise à jour du flux RSS !"))
+
+    @apc.command(name="pinarticle", description="Épingle un article RSS.")
+    @apc.choices(action=[apc.Choice(name="Épingler", value=1),apc.Choice(name="Retirer", value=0)])
+    @apc.describe(idarticle="Identifiant de l'article", action="Action")
+    @sysWebCheckUser()
+    async def pinarticle(self, interact:Interaction, idarticle:str, action:apc.Choice[int]):
+        try:
+            req = self.dbRSS.cursor()
+            if action.value == 1:
+                req.execute("SELECT idFeed FROM data_feeds WHERE verify_key = ? AND isMarked = FALSE;", [idarticle])
+                req.fetchone()
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage(description="L'article a déjà été épinglé ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE data_feeds SET isMarked = TRUE WHERE verify_key = ?", [idarticle])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="L'article a bien été épinglé !"),delete_after=3.0)
+            else:
+                req.execute("SELECT idFeed FROM data_feeds WHERE verify_key = ? AND isMarked = FALSE;", [idarticle])
+                req.fetchone()
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage(description="L'article a déjà été retiré ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE data_feeds SET isMarked = TRUE WHERE verify_key = ?", [idarticle])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="L'article a bien été retiré !"),delete_after=3.0)
+        except sqlite3.Error as e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite avec la DB!"),delete_after=3.0)
+        
+
+
+    @apc.command(name="hidearticle", description="Cache un article.")
+    @apc.choices(action=[apc.Choice(name="Retirer", value=1),apc.Choice(name="Afficher", value=0)])
+    @apc.describe(idarticle="Identifiant de l'article", action="Action")
+    @sysWebCheckUser()
+    async def hidearticle(self, interact:Interaction, idarticle:str, action:apc.Choice[int]):
+        try:
+            req = self.dbRSS.cursor()
+            if action.value == 1:
+                req.execute("SELECT idFeed FROM data_feeds WHERE verify_key = ? AND isHidden = FALSE;", [idarticle])
+                req.fetchone()
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage(description="L'article a déjà été retiré ou, l'identifiant n'existe pas !"), delete_after=3.0)
+                req.execute("UPDATE data_feeds SET isHidden = TRUE WHERE verify_key = ?;", [idarticle])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="L'article a bien été retiré !"),delete_after=3.0)
+            else:
+                req.execute("SELECT idFeed FROM data_feeds WHERE verify_key = ? AND isHidden = TRUE;", [idarticle])
+                req.fetchone()
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage(description="L'article a déjà visible ou, l'identifiant renseigné n'existe pas !"), delete_after=3.0)
+                req.execute("UPDATE data_feeds SET isHidden = FALSE WHERE verify_key = ?;", [idarticle])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="L'article est de nouveau visible !"),delete_after=3.0)
+        except sqlite3.Error as e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite avec la DB!"),delete_after=3.0)
+
+
+    @apc.command(name="hidecateg", description="Cache tous les articles de la catégorie concerné.")
+    @apc.choices(idcateg=appChoices, action=[apc.Choice(name="Retirer", value=1),apc.Choice(name="Afficher", value=0)])
+    @apc.describe(idcateg="Identifiant de la catégorie", action="Action")
+    @sysWebCheckUser()
+    async def hidecateg(self, interact:Interaction,idcateg:apc.Choice[int], action:apc.Choice[int]):
+        try:
+            req = self.dbRSS.cursor()
+            if action.value == 1:
+                req.execute("SELECT idCateg FROM categsFeed WHERE idCateg = ? AND isHidden = FALSE;", [idcateg.value])
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage("La catégorie est déjà visible ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE categsFeed SET isHidden = TRUE WHERE idCateg = ?;", [idcateg.value])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="La catégorie a bien été retiré !"),delete_after=3.0)
+            else:
+                req.execute("SELECT idCateg FROM categsFeed WHERE idCateg = ? AND isHidden = TRUE;", [idcateg.value])
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage("La catégorie est déjà été retiré ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE categsFeed SET isHidden = FALSE WHERE idCateg = ?;", [idcateg.value])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="La catégorie est de nouveau visible !"),delete_after=3.0)
+        except sqlite3.Error as e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite avec la DB !"),delete_after=3.0)
+
+
+    @apc.command(name="hidefeed", description="Cache tous les articles de flux RSS concerné.")
+    @apc.choices(idfeed=appChoicesFeeds, action=[apc.Choice(name="Retirer", value=1),apc.Choice(name="Afficher", value=0)])
+    @apc.describe(idfeed="Identifiant du flux RSS")
+    @sysWebCheckUser()
+    async def hidefeed(self, interact:Interaction,idfeed:apc.Choice[int], action:apc.Choice[int]):
+        try:
+            req = self.dbRSS.cursor()
+            if action.value == 1:
+                req.execute("SELECT idFeed FROM feeds WHERE idFeed = ? AND isHidden = FALSE;", [idfeed.value])
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage("Ce flux RSS est déjà visible ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE feeds SET isHidden = TRUE WHERE idFeed = ?;", [idfeed.value])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="Le flux RSS a bien été retiré !"),delete_after=3.0)
+            else:
+                req.execute("SELECT idFeed FROM feeds WHERE idFeed = ? AND isHidden = TRUE;", [idfeed.value])
+                rwc = req.rowcount
+                if rwc == 0:
+                    req.close()
+                    return await interact.response.send_message(embed=errorMessage("Le flux RSS a déjà été retiré ou, l'identifiant renseigné n'existe pas !"),delete_after=3.0)
+                req.execute("UPDATE feeds SET isHidden = FALSE WHERE idFeed = ?;", [idfeed.value])
+                self.dbRSS.commit()
+                req.close()
+                return await interact.response.send_message(embed=successMessage(description="Le flux RSS a bien été retiré !"),delete_after=3.0)
+        except sqlite3.Error as e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite avec la DB !"),delete_after=3.0)
+
     ### TASKS ###
     @tasks.loop(minutes=10)
     async def postRSSFeeds(self):
@@ -230,14 +454,19 @@ class RSSManager(commands.Cog):
         for rss in rssFeeds:
             if not rss["issent"] or not rss["isupdated"]:
                 try:
-                    cur = self.dbRSS.cursor()
-                    cur.execute("INSERT INTO feeds(nameFeed,linkFeed,categFeed) VALUES(?,?,?);",[
+                    req = self.dbRSS.cursor()
+                    req.execute("SELECT COUNT(*) FROM feeds WHERE nameFeed = ?;", [rss["name"]])
+                    rwc = req.fetchone()
+                    if rwc[0] > 0:
+                        req.close()
+                        continue
+                    req.execute("INSERT INTO feeds(nameFeed,linkFeed,categFeed) VALUES(?,?,?);",[
                         rss["name"],
                         rss["link"],
                         rss["categ"]
                     ])
-                    dbFeeds.commit()
-                    cur.close()
+                    self.dbRSS.commit()
+                    req.close()
                     richPrint(f"[blue][INFO][/blue]: RSS Feed {rss['name']} updated!")
                 except sqlite3.Error:
                     richPrint(f"[red][WARNING][/red]: RSS Feed {rss['name']} cannot be inserted!")
