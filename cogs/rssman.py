@@ -13,10 +13,12 @@ from email.utils import parsedate_tz
 from random import randint
 from sys import argv
 
-if argv[1]:
+try:
+    richPrint(f"Using: {argv[1]}")
     DB_PATH = "DB_FULLPATH_DEBUG"
-else:
+except IndexError:
     DB_PATH = "DB_FULLPATH"
+    richPrint(f"Using: {DB_PATH}")
 
 async def setup(bot):
     rssman = RSSManager(bot)
