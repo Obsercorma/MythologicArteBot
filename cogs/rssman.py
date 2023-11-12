@@ -11,6 +11,12 @@ from utils_bot import sysWebCheckUser, successMessage, errorMessage, infoMessage
 from datetime import datetime
 from email.utils import parsedate_tz
 from random import randint
+from sys import argv
+
+if argv[1]:
+    DB_PATH = "DB_FULLPATH_DEBUG"
+else:
+    DB_PATH = "DB_FULLPATH"
 
 async def setup(bot):
     rssman = RSSManager(bot)
@@ -37,7 +43,7 @@ def getCategs():
     dbCategs = []
     env_values = dotenv_values(".env")
     try:
-        cur = sqlite3.connect(env_values["DB_FULLPATH"], isolation_level=None).cursor()
+        cur = sqlite3.connect(env_values[DB_PATH], isolation_level=None).cursor()
         res = cur.execute("SELECT * FROM categsFeed", [])
         tmpData = cur.fetchall()
         for categ in tmpData:
@@ -72,7 +78,7 @@ class RSSManager(commands.Cog):
         self.envsValues = dotenv_values(".env")
         self.postRSSFeeds.start()
         self.newsHasStarted = False
-        self.dbRSS = sqlite3.connect(self.envsValues["DB_FULLPATH"], isolation_level=None)
+        self.dbRSS = sqlite3.connect(self.envsValues[DB_PATH], isolation_level=None)
         
 
     def __del__(self):
@@ -445,6 +451,29 @@ class RSSManager(commands.Cog):
         except sqlite3.Error as e:
             richPrint(e)
             return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite avec la DB !"),delete_after=3.0)
+
+    @apc.command(name="hiddenarticles", description="Affiche les articles retirés en fonction de la catégorie.")
+    @apc.choices(categ=appChoices)
+    @apc.describe(categ="Catégorie")
+    @sysWebCheckUser()
+    async def hiddenarticles(self, interact:Interaction, categ:apc.Choice[int]):
+        try:
+            req = self.dbRSS.cursor()
+            req.execute("""
+            SELECT D.titlePost,D.linkPost,D.datePost,D.verify_key,C.descCateg FROM data_feeds D 
+            INNER JOIN categsFeed C ON D.idCateg = C.idCateg 
+            WHERE C.idCateg = ? AND D.isHidden = TRUE ORDER BY D.datePost DESC LIMIT 15;""", [categ.value])
+            data = req.fetchall()
+            embed = Embed(title="Voici tous les articles **cachés** de la catégorie :", color=0x3F8FFC)
+            for art in data:
+                tmpDate = parsedate_tz(art[2])
+                embed.add_field(name=art[0], value=f"**[Lien article]({art[1]})**\nAjouté le {tmpDate[2]:02d}/{tmpDate[1]:02d}/{tmpDate[0]} {tmpDate[3]:02d}:{tmpDate[4]:02d}\nCatégorie: {art[4]}\nID: **{art[3]}**", inline=False)
+            else:
+                embed.add_field(name="INFO:", value="Aucun articles n'a été retiré !")
+            return await interact.response.send_message(embed=embed)
+        except e:
+            richPrint(e)
+            return await interact.response.send_message(embed=errorMessage(description="Une erreur s'est produite lors de la récupération des articles !"), delete_after=3.0)
 
     ### TASKS ###
     @tasks.loop(minutes=10)
