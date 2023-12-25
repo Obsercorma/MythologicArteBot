@@ -10,6 +10,11 @@ config = dotenv_values(".env")
 with open("./exts.json", "r", encoding="utf-8") as file:
     exts = json.load(file)
 
+extChoices = []
+
+for ext in exts.items():
+    extChoices.append(apc.Choice(name=ext[0], value=ext[1]["name"]))
+
 class MyBot(commands.Bot):
     syncedCommands = []
     def __init__(self):
@@ -33,16 +38,17 @@ bot = MyBot()
 
 @bot.tree.command(name="reloadext", description="Recharger une extension du bot")
 @sysWebCheckUser()
-@apc.describe(extname="Nom de l'extension (cog)")
-async def reloadext(interact:discord.Interaction, extname:str):
+@apc.describe(choices="Nom de l'extension (cog)")
+@apc.choices(choices=extChoices)
+async def reloadext(interact:discord.Interaction, choices:apc.Choice[str]):
     try:
-        richPrint(f"[blue][INFO] [/blue]: Reloading {extname} extension...")
-        await bot.reload_extension(f"cogs.{extname}")
-        richPrint(f"[green][SUCCESS] [/green]: {extname} extension has been reloaded!")
-        return await interact.response.send_message("Rechargement effectué !")
+        richPrint(f"[blue][INFO] [/blue]: Reloading {choices.value} extension...")
+        await bot.reload_extension(f"cogs.{choices.value}")
+        richPrint(f"[green][SUCCESS] [/green]: {choices.value} extension has been reloaded!")
+        return await interact.response.send_message("Rechargement effectué !", delete_after=3.0)
     except:
-        richPrint(f"[yellow][WARNING] [/yellow]: Cannot reload {extname} extension!")
-        return await interact.response.send_message("Rechargement de l'extension impossible !")
+        richPrint(f"[yellow][WARNING] [/yellow]: Cannot reload {e} extension!")
+        return await interact.response.send_message("Rechargement de l'extension impossible !", delete_after=3.0)
    
 
 @bot.tree.command(name="ping", description="Get pong latency")

@@ -119,6 +119,7 @@ class RSSManager(commands.Cog):
             cur.execute("INSERT INTO categsFeed(descCateg) VALUES(?);",[name])
             self.dbRSS.commit()
             cur.close()
+            return True
         except sqlite3.Error as e:
             richPrint(e)
             return False
@@ -169,6 +170,9 @@ class RSSManager(commands.Cog):
         for reg in regexList:
             if re.match(reg, rssfeedlink):
                 rssfeed = self.getRSSFeeds()
+                appChoicesFeeds.clear()
+                for feed in rssfeed.items():
+                    appChoicesFeeds.append(apc.Choice(name=feed["nameFeed"], value=feed["idFeed"]))
                 cur = self.dbRSS.cursor()
                 cur.execute("SELECT idFeed FROM feeds ORDER BY idFeed DESC", [])
                 res = cur.fetchone()
@@ -231,25 +235,30 @@ class RSSManager(commands.Cog):
 
     @apc.command(name="removecategrss", description="Supprime la catégorie selectionné.")
     @sysWebCheckUser()
-    @apc.describe(idcateg="Identifiant de la catégorie", action="Conserver ou supprimer les articles de la catégorie")
+    @apc.describe(idcateg="Catégorie", action="Conserver ou supprimer les articles de la catégorie")
     @apc.choices(action=[
         apc.Choice(name="Conserver et retirer", value=1), 
         apc.Choice(name="Supprimer", value=2)
-    ])
-    async def removecategrss(self, interact:Interaction, idcateg:int, action:apc.Choice[int]):
+    ], idcateg=appChoices)
+    async def removecategrss(self, interact:Interaction, idcateg:apc.Choice[int], action:apc.Choice[int]):
         categFeed = self.getCategs()
         if action.value == 1:
             req = self.dbRSS.cursor()
-            req.execute("UPDATE categsFeed SET isHidden = TRUE WHERE idCateg = ?", [idcateg])
+            req.execute("UPDATE categsFeed SET isHidden = TRUE WHERE idCateg = ?", [idcateg.value])
             self.dbRSS.commit()
             req.close()
-            return await interact.response.send_message(embed=infoMessage(description=f"Conservation et retrait des articles effectué !"))
+            return await interact.response.send_message(embed=infoMessage(description=f"Conservation et retrait des articles effectué !"), delete_after=5.0)
         elif action.value == 2:
             req = self.dbRSS.cursor()
-            req.execute("UPDATE categsFeed SET isHidden = TRUE WHERE idCateg = ?", [idcateg])
-            req.execute("DELETE FROM data_feeds WHERE idCateg = ?", [idcateg])
+            req.execute("DELETE FROM categsFeed WHERE idCateg = ?", [idcateg.value])
+            req.execute("DELETE FROM data_feeds WHERE idCateg = ?", [idcateg.value])
             self.dbRSS.commit()
             req.close()
+            # for categ in range(len(appChoices)):
+            #     if appChoices[categ].value == idcateg.value:
+            #         appChoices.remove(categ)
+            # await self.bot.tree.sync()
+            return await interact.response.send_message(embed=infoMessage(description="Suppression de la catégorie et des articles associés effectués !"), delete_after=5.0)
 
     @apc.command(name="showcateg", description="Remise en place de la catégorie")
     @sysWebCheckUser()
@@ -482,7 +491,10 @@ class RSSManager(commands.Cog):
     async def postRSSFeeds(self):
         richPrint("[blue]\[TASK_INFO][/blue]: Apply non-updated and non-sent RSS Feeds...")
         rssFeeds = self.getRSSFeeds()
+        #richPrint(rssFeeds)
+        # appChoicesFeeds.clear()
         for rss in rssFeeds:
+            # appChoicesFeeds.append(apc.Choice(name=rss["name"], value=rss["idname"]))
             if not rss["issent"] or not rss["isupdated"]:
                 try:
                     req = self.dbRSS.cursor()
@@ -503,6 +515,7 @@ class RSSManager(commands.Cog):
                     richPrint(f"[red][WARNING][/red]: RSS Feed {rss['name']} cannot be inserted!")
                 rss["issent"] = True
                 rss["isupdated"] = True
+        # await self.bot.tree.sync()
         self.setRSSFeeds(rssFeeds)
         if not self.newsHasStarted:
             self.newsHasStarted = True
