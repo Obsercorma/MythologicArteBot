@@ -19,7 +19,8 @@ if len(argv) > 1:
     else:
         DB_PATH = "DB_FULLPATH"
         richPrint(f"Using: {DB_PATH}")
-
+else:
+    DB_PATH = "DB_FULLPATH"
 async def setup(bot):
     rssman = RSSManager(bot)
     await bot.add_cog(rssman)

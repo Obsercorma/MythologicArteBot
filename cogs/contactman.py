@@ -15,6 +15,8 @@ if len(argv) > 1:
         DB_PATH_PORTFOLIO = config["DB_PORTFOLIO_PULLPATH_DEBUG"]
     else:
         DB_PATH_PORTFOLIO = config["DB_PORTFOLIO_PULLPATH"]
+else:
+    DB_PATH_PORTFOLIO = config["DB_PORTFOLIO_PULLPATH"]
 
 async def setup(bot):
     await bot.add_cog(ContactManager(bot))
