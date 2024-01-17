@@ -3,10 +3,18 @@ from discord.ext import commands
 from discord import app_commands as apc, Game
 from dotenv import dotenv_values
 import json
+from sys import argv
 from rich import print as richPrint
 from utils_bot import sysWebCheckUser
 
 config = dotenv_values(".env")
+
+if len(argv) > 1:
+    if argv[1] == "--debug":
+        richPrint("[yellow][WARNING] [/yellow]: Debug mode activated!")
+    else:
+        richPrint("[yellow][WARNING] [/yellow]: Real mode activated!")
+
 with open("./exts.json", "r", encoding="utf-8") as file:
     exts = json.load(file)
 

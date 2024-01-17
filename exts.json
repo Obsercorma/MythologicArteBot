@@ -6,5 +6,9 @@
     "ClearManager":{
         "name":"clearman",
         "isActive":true
+    },
+    "ContactManager":{
+        "name":"contactman",
+        "isActive":true
     }
 }

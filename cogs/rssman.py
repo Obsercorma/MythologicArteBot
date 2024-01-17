@@ -13,12 +13,12 @@ from email.utils import parsedate_tz
 from random import randint
 from sys import argv
 
-try:
-    richPrint(f"Using: {argv[1]}")
-    DB_PATH = "DB_FULLPATH_DEBUG"
-except IndexError:
-    DB_PATH = "DB_FULLPATH"
-    richPrint(f"Using: {DB_PATH}")
+if len(argv) > 1:
+    if argv[1] == "--debug":
+        DB_PATH = "DB_FULLPATH_DEBUG"
+    else:
+        DB_PATH = "DB_FULLPATH"
+        richPrint(f"Using: {DB_PATH}")
 
 async def setup(bot):
     rssman = RSSManager(bot)
@@ -84,7 +84,7 @@ class RSSManager(commands.Cog):
         
 
     def __del__(self):
-        richPrint("[blue]\[INFO][/blue] : Interrupting RSSManager...")
+        richPrint(f"[blue]\[INFO][/blue] : Interrupting RSSManager...")
         self.dbRSS.close()
 
     def getCategs(self):

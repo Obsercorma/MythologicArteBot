@@ -10,6 +10,9 @@ class ClearManager(commands.Cog):
     def __init__(self, bot : commands.Bot):
         self.bot = bot
     
+    def __del__(self):
+        richPrint(f"[blue]\[INFO][/blue] : Interrupting ClearManager...")
+
     @apc.command(name="clear", description="Efface 'N' messages")
     @apc.describe(nbrmesg="Nombre de messages à effacer")
     @apc.check(isModerator)
