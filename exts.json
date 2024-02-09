@@ -1,10 +1,22 @@
 {
     "RSSManager":{
         "name":"rssman",
-        "isActive":true
+        "isActive":true,
+        "type":"cog"
     },
     "ClearManager":{
         "name":"clearman",
-        "isActive":true
+        "isActive":true,
+        "type":"cog"
+    },
+    "ContactManager":{
+        "name":"contactman",
+        "isActive":true,
+        "type":"cog"
+    },
+    "Presence":{
+        "name":"presence",
+        "isActive":true,
+        "type":"task"
     }
 }

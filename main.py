@@ -26,7 +26,11 @@ class MyBot(commands.Bot):
         for ext in exts.values():
             richPrint(f"EXT STATUS: {ext['name']} : {ext['isActive']}!")
             if ext["isActive"]:
-                await self.load_extension(f"cogs.{ext['name']}")
+                match ext["type"]:
+                    case "cog":
+                        await self.load_extension(f"cogs.{ext['name']}")
+                    case "task":
+                        await self.load_extension(f"tasks.{ext['name']}")
         self.syncedCommands = await self.tree.sync()
     
     async def on_ready(self):
