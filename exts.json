@@ -1,11 +1,13 @@
 {
     "RSSManager":{
         "name":"rssman",
-        "isActive":true
+        "isActive":true,
+        "type":"cog"
     },
     "ClearManager":{
         "name":"clearman",
-        "isActive":true
+        "isActive":true,
+        "type":"cog"
     },
     "ContactManager":{
         "name":"contactman",
