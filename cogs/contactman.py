@@ -22,6 +22,9 @@ async def setup(bot):
     await bot.add_cog(ContactManager(bot))
 
 class ContactManager(commands.Cog):
+    CONTACT_PENDING = 0
+    CONTACT_CHECKED = 1
+    CONTACT_CANCELLED = 2
     def __init__(self, bot : commands.Bot):
         self.bot = bot
         self.dbRSS = sqlite3.connect(DB_PATH_PORTFOLIO)
@@ -55,3 +58,18 @@ class ContactManager(commands.Cog):
                 return await interact.response.send_message(f"Adresse mail {email} débannie !", delete_after=3.0)
             except:
                 return await interact.response.send_message(f"Impossible de débannir l'adresse mail {email} !", delete_after=3.0)
+    
+    @apc.command(name="listcontact", description="Lister toutes les prise de contact")
+    @sysWebCheckUser()
+    async def listcontact(self, interact:Interaction):
+        try:
+            usersContact = self.dbRSS.execute("SELECT * FROM messages_contact").fetchall()
+            if len(usersContact) > 0:
+                embed = Embed(title="Liste des prises de contact", description="Liste des prises de contact", color=0x00FF00)
+                for user in usersContact:
+                    embed.add_field(name=user[1], value=f"De: {user[3]} Message : {user[4]}\nStatut : {user[6]}", inline=False)
+                return await interact.response.send_message(embed=embed)
+            else:
+                return await interact.response.send_message("Aucune prise de contact pour le moment !", delete_after=3.0)
+        except:
+            return await interact.response.send_message("Impossible de lister les prise de contact !", delete_after=3.0)
