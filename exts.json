@@ -9,6 +9,12 @@
     },
     "ContactManager":{
         "name":"contactman",
-        "isActive":true
+        "isActive":true,
+        "type":"cog"
+    },
+    "Presence":{
+        "name":"presence",
+        "isActive":false,
+        "type":"task"
     }
 }
