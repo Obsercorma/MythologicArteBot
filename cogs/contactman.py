@@ -67,7 +67,14 @@ class ContactManager(commands.Cog):
             if len(usersContact) > 0:
                 embed = Embed(title="Liste des prises de contact", description="Liste des prises de contact", color=0x00FF00)
                 for user in usersContact:
-                    embed.add_field(name=user[1], value=f"De: {user[3]} Message : {user[4]}\nStatut : {user[6]}", inline=False)
+                    match email[6]:
+                        case self.CONTACT_CANCELLED:
+                            dataStatus = "Annulée"
+                        case self.CONTACT_CHECKED:
+                            dataStatus = "Confirmée"
+                        case self.CONTACT_PENDING:
+                            dataStatus = "En attente"
+                    embed.add_field(name=user[1], value=f"De: {user[3]} Message : {user[4]}\nStatut : {dataStatus}", inline=False)
                 return await interact.response.send_message(embed=embed)
             else:
                 return await interact.response.send_message("Aucune prise de contact pour le moment !", delete_after=3.0)
