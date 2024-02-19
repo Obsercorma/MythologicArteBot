@@ -65,7 +65,7 @@ class ContactManager(commands.Cog):
         try:
             usersContact = self.dbRSS.execute("SELECT * FROM messages_contact").fetchall()
             if len(usersContact) > 0:
-                embed = Embed(title="Liste des prises de contact", description="Liste des prises de contact", color=0x00FF00)
+                embed = Embed(title="Liste des prises de contact", description="Liste des prises de contact", color=0x3F8FFC)
                 for user in usersContact:
                     if user[6] == self.CONTACT_CANCELLED:
                         dataStatus = "Annulée"
