@@ -9,11 +9,13 @@ import sqlite3, requests
 from xmltodict import parse as xmlParse
 from dotenv import dotenv_values
 from random import random
-from utils_bot import sysWebCheckUser, successMessage, errorMessage, infoMessage
+from utils_bot import *
 from datetime import datetime
 from email.utils import parsedate_tz
 from random import randint
 from sys import argv
+
+from utils_bot import sysWebCheckUser
 
 DEBUG_MODE = False
 
@@ -51,6 +53,14 @@ class FilesManager(commands.Cog):
         except:
             pass
         return dataFiles
+    
+    def setDataFiles(self, data:list)-> bool:
+        try:
+            with open("./db/files_docs.json", "w", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
+                json.dump(data, file)
+            return True
+        except:
+            return False
 
     @apc.command(name="listfiles", description="Liste les fichiers présents sur le portfolio via HTTPS")
     @sysWebCheckUser()
@@ -80,19 +90,20 @@ class FilesManager(commands.Cog):
     pathfile="Nom véritable du fichier")
     async def addfile(self, interact:Interaction, namefile:str,typefile:str, isprivate:apc.Choice[int], isunlisted:apc.Choice[int], pathfile:str):
         dataFiles = self.getDataFiles()
+        uidFile = self.genUIDFile()
         dataFiles.append({
             "nameFile":namefile,
             "typeFile":typefile,
-            "guidFile":self.genUIDFile(),
-            "isPrivate":bool(isprivate),
-            "isUnlisted":bool(isunlisted),
+            "guidFile":uidFile,
+            "isPrivate":bool(isprivate.value),
+            "isUnlisted":bool(isunlisted.value),
             "pathFile":pathfile
         })
         try:
-            with open("./db/files_docs.json", "w", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
-                json.dump(dataFiles, file)
+            self.setDataFiles(dataFiles)
         except:
             return await interact.response.send_message(embed=Embed(title="ERR: Ajout des informations!", description="Veuillez vérifier les droits de lecture écriture ou consulter les Logs !", color=0xf1a004))
+        printLogSuccess(f"Référence inséré {uidFile}", True)
         return await interact.response.send_message(embed=Embed(title="Ajout effectué !", description="L'insertion des nouvelles données ont bien été effectués !", color=0x3f8ffc))
 
     @apc.command(name="delfile", description="Retire la référence du fichier via l'ID")
@@ -104,8 +115,49 @@ class FilesManager(commands.Cog):
         for d in range(0,len(dataFiles)):
             if dataFiles[d]["guidFile"] == uidfile:
                 del dataFiles[d]
-                found = True
+                found = self.setDataFiles(dataFiles) # check if file found and wrote 
                 break
         if found:
+            printLogSuccess(f"Référence retiré {uidfile}", True)
             return await interact.response.send_message(embed=Embed(title=f"La référence UID:{uidfile} à ce fichier a bien été retiré !", color=0x3F8FFC))
+        return await interact.response.send_message(embed=Embed(title=f"Aucune correspondance n'a été trouvé avec l'UID {uidfile} !", color=0xf1a004))
+    
+    @apc.command(name="fileaccess", description="Changer l'accessibilité d'un fichier (privé/public).")
+    @sysWebCheckUser()
+    @apc.choices(accessibility=[
+        apc.Choice(name="Public", value=0),
+        apc.Choice(name="Privé", value=1)
+    ])
+    @apc.describe(uidfile="UID du fichier", accessibility="Redéfinir l'accessibilité du fichier")
+    async def fileaccess(self, interact:Interaction, uidfile:str, accessibility:apc.Choice[int]):
+        dataFiles = self.getDataFiles()
+        found = False
+        for d in range(0,len(dataFiles)):
+            if dataFiles[d]["guidFile"] == uidfile:
+                dataFiles[d]["isPrivate"] = bool(accessibility.value)
+                found = self.setDataFiles(dataFiles) # check if file found and wrote
+                break
+        if found:
+            printLogSuccess(f"Le fichier **{uidfile}** est dorénavant {'privé' if bool(accessibility.value) else 'public'}", True)
+            return await interact.response.send_message(embed=Embed(title=f"La référence __**{uidfile}**__ à ce fichier a bien été rendu {accessibility.name.lower()} !", color=0x3F8FFC))
+        return await interact.response.send_message(embed=Embed(title=f"Aucune correspondance n'a été trouvé avec l'UID {uidfile} !", color=0xf1a004))
+    
+    @apc.command(name="filevisibility", description="Redéfir la visibilité du fichier.")
+    @sysWebCheckUser()
+    @apc.choices(visibility=[
+        apc.Choice(name="Non Répertorié", value=1),
+        apc.Choice(name="Repertorié", value=0)
+    ])
+    @apc.describe(uidfile="UID du fichier", visibility="Redéfinir l'accessibilité du fichier")
+    async def filevisibility(self, interact:Interaction,uidfile:str, visibility:apc.Choice[int]):
+        dataFiles = self.getDataFiles()
+        found = False
+        for d in range(0,len(dataFiles)):
+            if dataFiles[d]["guidFile"] == uidfile:
+                dataFiles[d]["isUnlisted"] = bool(visibility.value)
+                found = self.setDataFiles(dataFiles) # check if file found and wrote
+                break
+        if found:
+            printLogSuccess(f"La référence {uidfile} a bien été {'désindexée' if bool(visibility.value) else 'indexée'} !", True)
+            return await interact.response.send_message(embed=Embed(title=f"Le fichier __**{uidfile}**__ est dorénavant __\"{visibility.name.lower()}\"__ !", color=0x3F8FFC))
         return await interact.response.send_message(embed=Embed(title=f"Aucune correspondance n'a été trouvé avec l'UID {uidfile} !", color=0xf1a004))
