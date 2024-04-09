@@ -14,6 +14,11 @@
         "isActive":true,
         "type":"cog"
     },
+    "FilesManager":{
+        "name":"filesman",
+        "isActive":true,
+        "type":"cog"
+    },
     "Presence":{
         "name":"presence",
         "isActive":false,

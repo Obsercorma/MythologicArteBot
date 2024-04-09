@@ -1,1 +1,22 @@
-[{"idname": 1, "name": "Grafikart.fr", "link": "http://feeds.feedburner.com/Grafikart", "ishidden": 0, "categ": 1, "nameCateg": "D\u00e9veloppement Web", "issent": true, "isupdated": true}, {"idname": 2, "name": "LaFermeDuWeb", "link": "https://www.lafermeduweb.net/tag/rss/reactjs.xml", "ishidden": 0, "categ": 2, "nameCateg": "Technologies ReactJS", "issent": false, "isupdated": false}]
+[
+    {
+        "idname": 1,
+        "name": "Grafikart.fr",
+        "link": "http://feeds.feedburner.com/Grafikart",
+        "ishidden": 0,
+        "categ": 1,
+        "nameCateg": "D\u00e9veloppement Web",
+        "issent": true,
+        "isupdated": true
+    },
+    {
+        "idname": 2,
+        "name": "LaFermeDuWeb",
+        "link": "https://www.lafermeduweb.net/tag/rss/reactjs.xml",
+        "ishidden": 0,
+        "categ": 2,
+        "nameCateg": "Technologies ReactJS",
+        "issent": false,
+        "isupdated": false
+    }
+]

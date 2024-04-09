@@ -32,7 +32,7 @@ class MyBot(commands.Bot):
     
     async def setup_hook(self):
         for ext in exts.values():
-            richPrint(f"EXT STATUS: {ext['name']} : {ext['isActive']}!")
+            richPrint(f"EXT STATUS: {ext['name']} : {ext['isActive']}")
             if ext["isActive"]:
                 if ext["type"] == "cog":
                         await self.load_extension(f"cogs.{ext['name']}")
