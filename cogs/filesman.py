@@ -5,7 +5,6 @@ from discord import Interaction, app_commands as apc, Embed, ButtonStyle, ui
 from dotenv import dotenv_values
 import json, re
 from rich import print as richPrint
-import sqlite3, requests
 from xmltodict import parse as xmlParse
 from dotenv import dotenv_values
 from random import random
@@ -16,6 +15,8 @@ from random import randint
 from sys import argv
 
 from utils_bot import sysWebCheckUser
+
+configValues = dotenv_values(".env")
 
 DEBUG_MODE = False
 
@@ -32,8 +33,10 @@ async def setup(bot):
     await bot.add_cog(FilesManager(bot))
 
 class FilesManager(commands.Cog):
+
     def __init__(self, bot:commands.Bot) -> None:
         self.bot = bot
+        self.filesDocsPath = configValues["DB_FILES_DOCS_FULLPATH"] if not DEBUG_MODE else "./db/files_docs.json"
     
     def __del__(self):
         richPrint(f"[blue]\[INFO][/blue] : Interrupting FilesManager...")
@@ -48,7 +51,7 @@ class FilesManager(commands.Cog):
     def getDataFiles(self) -> list:
         dataFiles = []
         try:
-            with open("./db/files_docs.json", "r", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
+            with open(self.filesDocsPath, "r", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
                 dataFiles = json.load(file)
         except:
             pass
@@ -56,7 +59,7 @@ class FilesManager(commands.Cog):
     
     def setDataFiles(self, data:list)-> bool:
         try:
-            with open("./db/files_docs.json", "w", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
+            with open(self.filesDocsPath, "w", encoding="utf-8") as file: # put two diffrents path depending on DEBUG_MODE
                 json.dump(data, file)
             return True
         except:
