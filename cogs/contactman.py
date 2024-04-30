@@ -64,17 +64,21 @@ class ContactManager(commands.Cog):
     async def listcontact(self, interact:Interaction):
         try:
             usersContact = self.dbRSS.execute("SELECT * FROM messages_contact").fetchall()
+            self.dbRSS.close()
+            richPrint(usersContact)
             if len(usersContact) > 0:
+                supData = ""
                 embed = Embed(title="Liste des prises de contact", description="Liste des prises de contact", color=0x3F8FFC)
-                for user in usersContact:
-                    if user[6] == self.CONTACT_CANCELLED:
+                for user in range(len(usersContact)):
+                    if usersContact[user][6] == self.CONTACT_CANCELLED:
                         dataStatus = "Annulée"
-                    elif user[6] == self.CONTACT_CHECKED:
+                    elif usersContact[user][6] == self.CONTACT_CHECKED:
                         dataStatus = "Confirmée"
-                    else: 
+                        supData = f"\nDe: {usersContact[user][3]}\n Message : {usersContact[user][4]}"
+                    else:
                         dataStatus = "En attente"
-                    embed.add_field(name=user[1], value=f"De: {user[3]} Message : {user[4]}\nStatut : {dataStatus}", inline=False)
-                return await interact.response.send_message(embed=embed)
+                    embed.add_field(name=usersContact[user][1], value=f"E-mail: {usersContact[user][1]}\nStatut : {dataStatus}{supData}", inline=False)
+                return await interact.response.send_message(embed=embed, delete_after=60.0)
             else:
                 return await interact.response.send_message("Aucune prise de contact pour le moment !", delete_after=3.0)
         except:
