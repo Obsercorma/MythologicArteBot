@@ -1,6 +1,9 @@
+from datetime import datetime
 from discord import Interaction, app_commands as apc
 from discord import Embed
 import json
+from rich import print as richPrint
+from datetime import datetime
 
 SYS_WEB_ID = 1166018238656827506
 data_roles = {}
@@ -31,6 +34,27 @@ def isAdmin(interact:Interaction):
         return False
     return apc.check(predicate)
 
+
+### LOGS MESSAGE WITH RICH ###
+
+
+def printLogSuccess(content:str, putDate:bool)->None:
+    date = datetime.now().strftime('(%m.%d.%Y, %H-%M-%S)')
+    richPrint(f"[green]\[SUCCESS][/green] {date if putDate else ''}: {content}")
+
+def printLogInfo(content:str, putDate:bool)->None:
+    date = datetime.now().strftime('(%m.%d.%Y, %H-%M-%S)')
+    richPrint(f"[blue]\[INFO][/blue] {date if putDate else ''}: {content}")
+
+
+def printLogWarn(content:str, putDate:bool)->None:
+    date = datetime.now().strftime('(%m.%d.%Y, %H-%M-%S)')
+    richPrint(f"[yellow]\[WARN][/yellow] {date if putDate else ''}: {content}")
+
+    
+def printLogError(content:str, putDate:bool)->None:
+    date = datetime.now().strftime('(%m.%d.%Y, %H-%M-%S)')
+    richPrint(f"[red]\[ERROR][/red] {date if putDate else ''}: {content}")
 
 ### EMBED MESSAGES ###
 
