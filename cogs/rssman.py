@@ -522,7 +522,7 @@ class RSSManager(commands.Cog):
             self.newsHasStarted = True
             self.postRSSNews.start()
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(hours=3)
     async def postRSSNews(self):
         rssFeeds = self.getRSSFeeds()
         try:
