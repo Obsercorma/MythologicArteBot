@@ -14,8 +14,8 @@
         "isActive":true,
         "type":"cog"
     },
-    "Presence":{
-        "name":"presence",
+    "ShutdownManager":{
+        "name":"shutdown",
         "isActive":false,
         "type":"task"
     }
